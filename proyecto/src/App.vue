@@ -6,31 +6,21 @@
       <span v-else>🌙</span>
     </button>
     <transition name="fade">
-      <div v-if="!loggedIn" class="auth-container">
-        <UserRegister v-if="view === 'register'" @notify="showNotification" />
-        <UserLogin v-if="view === 'login'" @login-success="handleLogin" @notify="showNotification" />
-        <div class="switch-buttons">
-          <button @click="view = 'register'" :class="{ active: view === 'register' }">Ir a Registro</button>
-          <button @click="view = 'login'" :class="{ active: view === 'login' }">Ir a Iniciar Sesión</button>
-        </div>
-      </div>
-      <UserDashboard v-else :username="username" @logout="handleLogout" @notify="showNotification" />
+      <LoginRegister v-if="!loggedIn" @login-success="handleLogin" />
+      <Dashboard v-else @logout="handleLogout" />
     </transition>
   </div>
 </template>
 
 <script>
-import UserRegister from './components/UserRegister.vue';
-import UserLogin from './components/UserLogin.vue';
-import UserDashboard from './components/UserDashboard.vue';
-import UserNotification from './components/UserNotification.vue'; // Actualizar la importación
+import LoginRegister from './components/LoginRegister.vue';
+import Dashboard from './components/Dashboard.vue';
+import UserNotification from './components/UserNotification.vue';
 
 export default {
   data() {
     return {
-      view: 'register',
       loggedIn: localStorage.getItem('loggedIn') === 'true',
-      username: localStorage.getItem('username') || '',
       darkMode: localStorage.getItem('darkMode') === 'true' || window.matchMedia('(prefers-color-scheme: dark)').matches,
       notification: {
         visible: false,
@@ -40,28 +30,18 @@ export default {
     };
   },
   components: {
-    UserRegister,
-    UserLogin,
-    UserDashboard,
-    UserNotification, // Actualizar el nombre del componente
+    LoginRegister,
+    Dashboard,
+    UserNotification,
   },
   methods: {
-    handleLogin(username) {
+    handleLogin() {
       this.loggedIn = true;
-      this.username = username;
       localStorage.setItem('loggedIn', 'true');
-      localStorage.setItem('username', username);
-      
-      // Inicializar tasksPerDay si no existe
-      if (!localStorage.getItem('tasksPerDay')) {
-        localStorage.setItem('tasksPerDay', JSON.stringify([0, 0, 0, 0, 0, 0, 0]));
-      }
     },
     handleLogout() {
       this.loggedIn = false;
-      this.username = '';
       localStorage.removeItem('loggedIn');
-      localStorage.removeItem('username');
       this.showNotification('Sesión cerrada correctamente', 'info');
     },
     toggleDarkMode() {
@@ -72,7 +52,7 @@ export default {
       this.notification = { visible: true, message, type };
       setTimeout(() => {
         this.notification.visible = false;
-      }, 3000); // Ocultar la notificación después de 3 segundos
+      }, 3000);
     },
   },
 };

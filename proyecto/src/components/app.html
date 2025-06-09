@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sistema de Cotizaciones</title>
+  <!-- Vue.js -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.js"></script>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style id="app-style">
+    [v-cloak] {
+      display: none;
+    }
+    
+    .fade-enter-active,
+    .fade-leave-active {
+      transition: opacity 0.3s;
+    }
+
+    .fade-enter-from,
+    .fade-leave-to {
+      opacity: 0;
+    }
+
+    .slide-up-enter-active,
+    .slide-up-leave-active {
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .slide-up-enter-from,
+    .slide-up-leave-to {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+
+    .bounce-enter-active {
+      animation: bounce-in 0.5s;
+    }
+
+    @keyframes bounce-in {
+      0% {
+        transform: scale(0.9);
+        opacity: 0;
+      }
+      50% {
+        transform: scale(1.05);
+        opacity: 0.5;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .loader {
+      width: 48px;
+      height: 48px;
+      border: 5px solid #1d4ed8;
+      border-bottom-color: transparent;
+      border-radius: 50%;
+      display: inline-block;
+      box-sizing: border-box;
+      animation: rotation 1s linear infinite;
+    }
+
+    @keyframes rotation {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50">
+  <div id="app" v-cloak class="min-h-screen">
+    <!-- Login / Register Screen -->
+    <div v-if="!isLoggedIn" class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+      <div class="max-w-md w-full bg-white p-10 rounded-xl shadow-md">
+        <div class="text-center mb-6">
+          <button 
+            @click="isRegistering = false" 
+            :class="isRegistering ? 'text-gray-500' : 'text-blue-600 font-bold'"
+            class="px-4">
+            Iniciar sesión
+          </button>
+          <button 
+            @click="isRegistering = true" 
+            :class="isRegistering ? 'text-blue-600 font-bold' : 'text-gray-500'"
+            class="px-4">
+            Registrarse
+          </button>
+        </div>
+
+        <!-- Login Form -->
+        <form v-if="!isRegistering" @submit.prevent="login" class="space-y-6">
+          <div>
+            <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">Sistema de Cotizaciones</h2>
+            <p class="mt-2 text-center text-sm text-gray-600">Inicie sesión para acceder al sistema</p>
+          </div>
+          <div class="rounded-md -space-y-px">
+            <div class="mb-4">
+              <label for="email-address" class="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
+              <input id="email-address" name="email" type="text" autocomplete="email" required
+                class="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Ingrese su usuario" v-model="loginForm.username">
+            </div>
+            <div>
+              <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+              <input id="password" name="password" type="password" autocomplete="current-password" required
+                class="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Ingrese su contraseña" v-model="loginForm.password">
+            </div>
+          </div>
+          <div>
+            <button type="submit"
+              class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+              <span v-if="isLoggingIn" class="mr-2">
+                <i class="fas fa-circle-notch fa-spin"></i>
+              </span>
+              {{ isLoggingIn ? 'Iniciando sesión...' : 'Iniciar sesión' }}
+            </button>
+          </div>
+          <div class="mt-4 text-sm text-center">
+            ¿No tienes cuenta?
+            <button @click.prevent="isRegistering = true" class="text-blue-600 hover:underline">
+              Registrarse
+            </button>
+          </div>
+        </form>
+
+        <!-- Registration Form -->
+        <form v-else @submit.prevent="register" class="space-y-6 bg-white p-10 rounded-xl shadow-md">
+          <h2 class="text-center text-2xl font-extrabold text-gray-900">Registro de Usuario</h2>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Nombre completo</label>
+            <input v-model="registrationForm.fullName" type="text" required
+              class="mt-1 block w-full border-gray-300 rounded-md"
+              :class="{'border-red-500': registrationErrors.fullName}">
+            <p v-if="registrationErrors.fullName" class="text-red-600 text-sm">{{ registrationErrors.fullName }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Correo electrónico</label>
+            <input v-model="registrationForm.email" type="email" required
+              class="mt-1 block w-full border-gray-300 rounded-md"
+              :class="{'border-red-500': registrationErrors.email}">
+            <p v-if="registrationErrors.email" class="text-red-600 text-sm">{{ registrationErrors.email }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Contraseña</label>
+            <input v-model="registrationForm.password" type="password" required
+              class="mt-1 block w-full border-gray-300 rounded-md"
+              :class="{'border-red-500': registrationErrors.password}">
+            <p v-if="registrationErrors.password" class="text-red-600 text-sm">{{ registrationErrors.password }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Confirmar contraseña</label>
+            <input v-model="registrationForm.confirmPassword" type="password" required
+              class="mt-1 block w-full border-gray-300 rounded-md"
+              :class="{'border-red-500': registrationErrors.confirmPassword}">
+            <p v-if="registrationErrors.confirmPassword" class="text-red-600 text-sm">{{ registrationErrors.confirmPassword }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Teléfono</label>
+            <input v-model="registrationForm.phone" type="text" required
+              class="mt-1 block w-full border-gray-300 rounded-md"
+              :class="{'border-red-500': registrationErrors.phone}">
+            <p v-if="registrationErrors.phone" class="text-red-600 text-sm">{{ registrationErrors.phone }}</p>
+          </div>
+          <div class="flex items-center justify-between">
+            <button type="button" @click="isRegistering = false"
+              class="text-sm text-gray-600 hover:underline">
+              Ya tengo cuenta
+            </button>
+            <button type="submit"
+              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+              Registrarse
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div v-else>
+      <!-- Navigation -->
+      <nav class="bg-blue-700 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex justify-between h-16">
+            <div class="flex">
+              <div class="flex-shrink-0 flex items-center">
+                <h1 class="text-white text-xl font-bold">Sistema de Cotizaciones</h1>
+              </div>
+            </div>
+            <div class="flex items-center">
+              <span class="text-white mr-4">{{ currentUser.name }}</span>
+              <button @click="logout"
+                class="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-5 font-medium rounded-md text-white bg-blue-800 hover:bg-blue-900 focus:outline-none focus:border-blue-900 active:bg-blue-900 transition ease-in-out duration-150">
+                <i class="fas fa-sign-out-alt mr-2"></i> Cerrar sesión
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+      <div class="max-w-7xl mx-auto p-4">
+        <h2 class="text-lg font-bold mb-4">Detalle de Cotización</h2>
+        <!-- Items table -->
+        <table class="min-w-full bg-white mb-4">
+          <!-- … table headers … -->
+          <tbody>
+            <tr v-for="item in quoteItems" :key="item.id">
+              <td>{{ item.name }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>
+                <!-- show suggestedPrice if available -->
+                <span v-if="suggestionsMap[item.id]">
+                  {{ suggestionsMap[item.id] | currency }}
+                </span>
+                <span v-else class="text-gray-400">—</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Button to trigger PriceSuggestions loop -->
+        <button
+          @click="fetchPriceSuggestions"
+          :disabled="isLoadingSuggestions"
+          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          <span v-if="isLoadingSuggestions" class="loader mr-2"></span>
+          {{ isLoadingSuggestions ? 'Calculando precios…' : 'Obtener Sugerencias de Precio' }}
+        </button>
+
+        <!-- Subtotal display -->
+        <div v-if="suggestedSubtotal !== null" class="mt-4 text-right text-xl">
+          <strong>Subtotal Sugerido:</strong>
+          {{ suggestedSubtotal | currency }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+</body>
+</html>
+
+<script>
+const { createApp } = Vue;
+
+createApp({
+  data() {
+    return {
+      isLoggedIn: false,
+      isRegistering: false,
+      isLoggingIn: false,
+      loginForm: {
+        username: '',
+        password: ''
+      },
+      registrationForm: {
+        fullName: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        phone: ''
+      },
+      registrationErrors: {
+        fullName: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        phone: ''
+      },
+      currentUser: {
+        name: ''
+      },
+      quoteItems: [
+        // example items, you probably populate these elsewhere
+        { id: 1, name: 'Producto A', quantity: 10 },
+        { id: 2, name: 'Servicio B', quantity: 5 },
+      ],
+      suggestionsMap: {},      // map id → suggestedPrice
+      suggestedSubtotal: null, // total from loop
+      isLoadingSuggestions: false
+    }
+  },
+  methods: {
+    login() {
+      this.isLoggingIn = true;
+      // Simulate login process
+      setTimeout(() => {
+        this.isLoggingIn = false;
+        this.isLoggedIn = true;
+      }, 1000);
+    },
+    register() {
+      // Optionally: clear any previous error messages
+      Object.keys(this.registrationErrors).forEach(key => {
+        this.registrationErrors[key] = '';
+      });
+      
+      // Optionally: reset the registration form inputs
+      this.registrationForm.fullName = '';
+      this.registrationForm.email = '';
+      this.registrationForm.password = '';
+      this.registrationForm.confirmPassword = '';
+      this.registrationForm.phone = '';
+      
+      // Leave the user on the login screen
+      this.isRegistering = false;
+    },
+    logout() {
+      this.isLoggedIn = false;
+    },
+    // NEW METHOD: calls the Magic Loop for price suggestions
+    async fetchPriceSuggestions() {
+      this.isLoadingSuggestions = true;
+      try {
+        const payload = {
+          client: { name: this.currentUser.name, industry: this.currentUser.industry || '' },
+          items: this.quoteItems.map(i => ({ id: i.id, name: i.name, quantity: i.quantity }))
+        };
+        const res = await fetch(
+          'https://magicloops.dev/api/loop/7e65238b-2231-4baf-9bb4-5e579cd218a3/run',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          }
+        );
+        const json = await res.json();
+        // build a map of id → suggestedPrice
+        this.suggestionsMap = {};
+        json.suggestions.forEach(s => {
+          this.suggestionsMap[s.id] = s.suggestedPrice;
+        });
+        this.suggestedSubtotal = json.suggestedSubtotal;
+      } catch (err) {
+        console.error('Loop error:', err);
+        Swal.fire('Error', 'No se pudo obtener las sugerencias de precio.', 'error');
+      } finally {
+        this.isLoadingSuggestions = false;
+      }
+    }
+  },
+  mounted() {
+    const appEl = document.getElementById('app');
+    if (appEl) {
+      appEl.removeAttribute('v-cloak');
+    }
+  },
+  filters: {
+    // simple currency filter
+    currency(value) {
+      if (typeof value !== 'number') return value;
+      return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN'
+      }).format(value);
+    }
+  }
+})
+.mount('#app');
+</script>
